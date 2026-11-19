@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { launchDesktop } from './desktop.mjs';
 
 const profile = await mkdtemp(join(tmpdir(), 'benchreplay-check-'));
+process.env.PRESAGE_API_KEY = 'desktop-test';
 const child = launchDesktop([
   '--remote-debugging-port=0', '--user-data-dir=' + profile,
   '--use-fake-device-for-media-stream',
@@ -77,9 +78,7 @@ try {
   }
   await click('enable');
   await until(() => evaluate("!!document.querySelector('#consent')?.matches('[open], [data-open]')"));
-  assert.equal(await evaluate('document.querySelector("#consent input").required'), true);
-  await evaluate('document.querySelector("#consent form").requestSubmit()');
-  assert.equal(await evaluate("!!document.querySelector('#consent')?.matches('[open], [data-open]')"), true);
+  assert.equal(await evaluate('document.querySelector("#consent input").required'), false);
   await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   await until(() => evaluate('document.activeElement.id === "enable"'));
@@ -101,8 +100,8 @@ try {
   }`);
   await click('enable');
   await until(() => evaluate('!!document.querySelector("#consent input")'));
-  await evaluate(`document.querySelector('#consent input').value = 'desktop-test';
-    document.querySelector('#consent form').requestSubmit()`);
+  assert.equal(await evaluate('document.querySelector("#consent input").value'), '');
+  await evaluate('document.querySelector("#consent form").requestSubmit()');
   await until(() => evaluate('document.querySelector("#camera-help").textContent.includes("Camera access was denied")'));
   assert.equal(await evaluate('!document.querySelector("#enable").hidden'), true);
   await evaluate('document.querySelectorAll(".step")[2].click()');

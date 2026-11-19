@@ -13,4 +13,11 @@ await Promise.all([
     platform: 'browser',
     target: 'es2023',
   }),
+  build({
+    entryPoints: ['electron/preload.cjs'],
+    outfile: 'dist/preload.cjs',
+    bundle: true,
+    platform: 'node',
+    external: ['electron'],
+  }),
 ]);

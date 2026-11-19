@@ -37,7 +37,15 @@ const progress = element('small', 'step-progress');
 const counter = element('span', 'replay-count');
 const consent = element('dialog', 'consent');
 const key = element('input', 'key');
+const keyError = element('p', 'key-error');
 const form = consent.querySelector('form')!;
+const confirmCamera = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+
+declare global {
+  interface Window {
+    benchReplay: { readPresageKey(): Promise<string> };
+  }
+}
 
 player.bindVideo(video);
 const stepList = element('ol', 'steps');
@@ -144,11 +152,23 @@ enable.addEventListener('click', () => {
   consent.showModal();
 });
 element('button', 'cancel').addEventListener('click', () => consent.close());
-consent.addEventListener('close', () => { form.reset(); });
-form.addEventListener('submit', event => {
+consent.addEventListener('close', () => {
+  form.reset();
+  keyError.hidden = true;
+  key.removeAttribute('aria-invalid');
+});
+form.addEventListener('submit', async event => {
   event.preventDefault();
-  const value = key.value.trim();
+  if (confirmCamera.disabled) return;
+  confirmCamera.disabled = true;
+  const manualKey = key.value.trim();
+  const value = manualKey || await window.benchReplay.readPresageKey().catch(() => '');
+  confirmCamera.disabled = false;
+  if (!consent.open) return;
   if (!value) {
+    keyError.textContent = 'Enter a Presage API key or set PRESAGE_API_KEY in .env and restart BenchReplay.';
+    keyError.hidden = false;
+    key.setAttribute('aria-invalid', 'true');
     key.focus();
     return;
   }

@@ -18,7 +18,9 @@ Manual playback and the simulated input work without a key or webcam. Select **T
 
 For live sensing, use Windows x64, a webcam, internet access, and a [Presage API key](https://physiology.presagetech.com/). The SDK also lists Apple Silicon macOS and Linux as supported platforms. The app's desktop checks were run on Windows.
 
-1. Select **Set up camera**, read the consent screen, and enter your key.
+Set `PRESAGE_API_KEY` in the local `.env` file beside `package.json`. Copy `.env.example` if the file is missing. Restart BenchReplay after changing it. Git ignores `.env`.
+
+1. Select **Set up camera**, read the consent screen, and select **Turn on camera**. A key typed into the dialog overrides the configured key for that session.
 2. Select **Calibrate** while facing the screen. Look down at your paper with your face still inside the preview, then select **Capture work pose**.
 3. Play a step, tilt your head toward the paper, and return to the screen. If the work pose falls outside your camera's view, try **Long blink** and calibrate facing forward. A deliberate closure followed by reopening replays the current step.
 
@@ -34,7 +36,7 @@ The player can tell whether your head moved toward the calibrated work pose. Eye
 
 The camera starts only after you select **Turn on camera**. The app requests video access only. It shows a preview while sensing and releases the tracks when you turn the camera off or close the window.
 
-The app keeps frames and derived landmarks in memory for the active session. Turning the camera off clears the pose calibration and current sample. BenchReplay does not save or share camera media, landmarks, or the API key. The key lives in memory for the active connection. Presage uses network requests to authenticate the key and check usage. SDK telemetry is disabled with `enableTelemetry: false`. The app uses no analytics or AI insights service. [Presage SDK privacy details](https://smartspectra.presagetech.com/docs/telemetry-and-privacy)
+The app keeps frames and derived landmarks in memory for the active session. Turning the camera off clears the pose calibration and current sample. BenchReplay never saves camera media, landmarks, or keys entered in the dialog. A key you add to `.env` stays in that local file until you remove it. Presage uses network requests to authenticate the key and check usage. SDK telemetry is disabled with `enableTelemetry: false`. The app uses no analytics or AI insights service. [Presage SDK privacy details](https://smartspectra.presagetech.com/docs/telemetry-and-privacy)
 
 ## Checks and challenge demo
 

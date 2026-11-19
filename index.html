@@ -80,8 +80,9 @@
       <h2 id="consent-title">Enable hands-free replay</h2>
       <p id="consent-copy">BenchReplay turns on your camera only after you confirm. SmartSpectra processes landmarks on this device. Presage checks your key and usage over the network. SDK telemetry is off.</p>
       <label for="key">Presage API key</label>
-      <input id="key" name="presage-key" type="password" required autocomplete="off" spellcheck="false" aria-describedby="key-note">
-      <small id="key-note">Use a key from physiology.presagetech.com. The app keeps it for this session only.</small>
+      <input id="key" name="presage-key" type="password" autocomplete="off" spellcheck="false" aria-describedby="key-note key-error">
+      <small id="key-note">Leave this blank to use the key in your local .env file, or enter a key for this session.</small>
+      <p id="key-error" role="alert" hidden></p>
       <div class="dialog-actions"><button id="cancel" type="button">Cancel</button><button class="primary" type="submit">Turn on camera</button></div>
     </form>
   </dialog>

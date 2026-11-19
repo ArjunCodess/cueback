@@ -580,3 +580,9 @@ footer kbd {
   border-block: 10px solid transparent;
   border-left: 16px solid currentColor;
 }
+
+#key-error {
+  margin-top: 8px;
+  color: #862f25;
+  font-size: 13px;
+}
