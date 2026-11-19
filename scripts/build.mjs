@@ -6,6 +6,7 @@ await Promise.all([
   cp('index.html', 'dist/index.html'),
   cp('src/style.css', 'dist/style.css'),
   cp('public/lesson', 'dist/lesson', { recursive: true }),
+  cp('public/fonts', 'dist/fonts', { recursive: true }),
   build({
     entryPoints: ['src/renderer.ts'],
     outfile: 'dist/renderer.js',

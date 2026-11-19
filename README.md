@@ -49,4 +49,4 @@ The tests cover pose calibration math, gesture timing, signal loss, manual overr
 
 For the challenge recording, fold the same step once with manual playback and once in **Live SmartSpectra** mode. Count the player controls used after starting each take. Show the player pause during the fold and replay the whole step when you return. Then leave the camera frame long enough to show the tracking-loss recovery and turn the camera off. Start recording after entering the key. Lead with **Best Thoughtful Real-World Use** and list **Most Creative or Delightful Use** in the entry as well. [Challenge requirements](https://dev.to/challenges/presage-2026-11-04/)
 
-The original tutorial diagrams and synthetic narration are bundled. Regenerate them on Windows with `python -m pip install pillow imageio-ffmpeg` and `python scripts/make-lesson.py`.
+The tutorial diagrams and synthetic narration are bundled. Regenerate them on Windows with `python -m pip install pillow imageio-ffmpeg numpy` and `python scripts/make-lesson.py`.

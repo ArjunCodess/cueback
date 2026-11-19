@@ -2,10 +2,12 @@
 import json
 import subprocess
 import tempfile
+from math import atan2, cos, pi, sin, sqrt
 from pathlib import Path
 
 import imageio_ffmpeg
-from PIL import Image, ImageDraw, ImageFont
+import numpy as np
+from PIL import Image, ImageColor, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "public" / "lesson"
@@ -17,6 +19,124 @@ INK = "#816141"
 PAPER = "#f0d49c"
 FOLD = "#d2ae71"
 LIGHT = "#f8e6b7"
+
+
+def tray_faces(back_angle, front_angle, front_tuck=0):
+    # Folding each edge to the center puts the crease halfway in.
+    # This gives a two-unit base with one-unit walls and gussets.
+    faces = []
+
+    def face(color, *points):
+        faces.append((color, points))
+
+    face(PAPER, (-1, -1, 0), (1, -1, 0), (1, 1, 0), (-1, 1, 0))
+    for side, outer, inner in ((-1, "#cb995d", "#d4ac71"), (1, "#b78754", "#edcd92")):
+        x = side * 0.986
+        face(outer, (side, -1, 0), (side, 1, 0), (side, 1, 1), (side, -1, 1))
+        face(inner, (x, -1, 0), (x, 1, 0), (x, 1, 1), (x, -1, 1))
+        face(LIGHT, (x, -1, 1), (x, 1, 1), (side, 1, 1), (side, -1, 1))
+        face("#f3dba6" if side == 1 else "#e5c68f", (x, -1, 0.004), (x, 1, 0.004), (0, 0, 0.004))
+
+    for sign, angle, tuck in ((-1, back_angle, pi if back_angle == pi / 2 else 0),
+                              (1, front_angle, front_tuck)):
+        y, z = 1 + cos(angle), sin(angle)
+        bottom_left, bottom_right = (-1, sign, 0), (1, sign, 0)
+        rim_left, rim_right = (-1, sign * y, z), (1, sign * y, z)
+        face("#b9874e" if sign == 1 and angle == pi / 2 else FOLD,
+             bottom_left, bottom_right, rim_right, rim_left)
+
+        if angle < pi / 2:
+            # Where the two corner triangles meet, their shared diagonal
+            # keeps its original length as the rising end pinches inward.
+            along_end = cos(angle) / (1 + sin(angle))
+            inward = sqrt(max(0, 1 - along_end ** 2))
+            for side in (-1, 1):
+                corner = (side, sign, 0)
+                side_rim = (side, sign, 1)
+                end_rim = (side, sign * y, z)
+                gusset_tip = (side * (1 - inward), sign * (1 + along_end), 1)
+                face("#c89f66", corner, side_rim, gusset_tip)
+                face("#e4be81", corner, gusset_tip, end_rim)
+
+        if tuck == pi:
+            # The liner folds over the rim, against the wall, and onto the
+            # floor. A small inset shows the two layers of folded paper.
+            inside = sign * (1 - 0.018)
+            upper_left, upper_right = (-1, inside, 1), (1, inside, 1)
+            lower_left, lower_right = (-1, inside, 0.012), (1, inside, 0.012)
+            face(LIGHT, rim_left, rim_right, upper_right, upper_left)
+            face("#f4dba5" if sign == -1 else "#d8b278",
+                 upper_left, upper_right, lower_right, lower_left)
+            face("#edd09b" if sign == 1 else "#f7e1ae",
+                 lower_left, lower_right, (0, sign * 0.018, 0.012))
+        else:
+            panel_angle = angle + tuck
+            flap_y = y + cos(panel_angle)
+            flap_z = z + sin(panel_angle)
+            flap_left, flap_right = (-1, sign * flap_y, flap_z), (1, sign * flap_y, flap_z)
+            tip_angle = panel_angle if not tuck else pi
+            tip = (0, sign * (flap_y + cos(tip_angle)), flap_z + sin(tip_angle))
+            face("#f2d29b", rim_left, rim_right, flap_right, flap_left)
+            face("#f7e0ad", flap_left, flap_right, tip)
+
+    return faces
+
+
+def draw_tray(canvas, faces):
+    # Use a single orthographic camera and compare depth per pixel so the
+    # raised walls hide whatever sits behind them, including folded layers.
+    azimuth, elevation = 0.48, 0.90
+
+    def project(point):
+        x, y, z = point
+        across = cos(azimuth) * x + sin(azimuth) * y
+        toward = cos(azimuth) * y - sin(azimuth) * x
+        return across, sin(elevation) * toward - cos(elevation) * z, cos(elevation) * toward + sin(elevation) * z
+
+    projected = [project(point) for _, points in faces for point in points]
+    left, top, _ = np.min(projected, axis=0)
+    right, bottom, _ = np.max(projected, axis=0)
+    scale = min(111, 440 / (right - left), 285 / (bottom - top))
+    origin_x = W / 2 - (left + right) * scale / 2
+    origin_y = 261 - (top + bottom) * scale / 2
+
+    def screen(point):
+        x, y, depth = project(point)
+        return origin_x + x * scale, origin_y + y * scale, depth
+
+    shadow = Image.new("L", canvas.size)
+    shadow_draw = ImageDraw.Draw(shadow)
+    for _, points in faces:
+        shadow_draw.polygon([screen((x + 0.21 * z, y + 0.13 * z, 0))[:2]
+                             for x, y, z in points], fill=135)
+    canvas.paste("#13251d", mask=shadow.filter(ImageFilter.GaussianBlur(12)))
+
+    samples = 2
+    raster = np.zeros((H * samples, W * samples, 4), dtype=np.uint8)
+    depth_buffer = np.full(raster.shape[:2], -np.inf, dtype=np.float32)
+    for color, points in faces:
+        vertices = np.array([screen(point) for point in points])
+        vertices[:, :2] *= samples
+        rgba = (*ImageColor.getrgb(color), 255)
+        for second, third in zip(vertices[1:], vertices[2:]):
+            first = vertices[0]
+            a, b = second - first, third - first
+            area = a[0] * b[1] - a[1] * b[0]
+            if abs(area) < 1e-6:
+                continue
+            x0, y0 = np.floor(np.minimum(np.minimum(first, second), third)[:2]).astype(int)
+            x1, y1 = np.ceil(np.maximum(np.maximum(first, second), third)[:2]).astype(int)
+            dy, dx = np.ogrid[y0:y1, x0:x1]
+            px, py = dx + 0.5 - first[0], dy + 0.5 - first[1]
+            u = (px * b[1] - py * b[0]) / area
+            v = (a[0] * py - a[1] * px) / area
+            depth = first[2] + u * a[2] + v * b[2]
+            stored = depth_buffer[y0:y1, x0:x1]
+            visible = (u >= -1e-7) & (v >= -1e-7) & (u + v <= 1 + 1e-7) & (depth > stored)
+            stored[visible] = depth[visible]
+            raster[y0:y1, x0:x1][visible] = rgba
+    paper = Image.fromarray(raster).resize(canvas.size, Image.Resampling.LANCZOS)
+    canvas.paste(paper, mask=paper.getchannel("A"))
 
 
 def render(index, phase=0):
@@ -38,7 +158,6 @@ def render(index, phase=0):
             draw.line((a, b), fill=INK, width=2)
 
     def arrow(start, end):
-        from math import atan2, cos, sin
         angle = atan2(end[1] - start[1], end[0] - start[0])
         draw.line((start, end), fill="#faf0d3", width=4)
         tip = [end]
@@ -69,9 +188,11 @@ def render(index, phase=0):
                     crease(corner, center)
     elif index == 3:
         polygon(corners)
-        for edge in (216, 320):
-            crease((402, edge), (558, edge))
-            crease((edge + 212, 190), (edge + 212, 346))
+        for edge in (229, 307):
+            if not phase:
+                crease((402, edge), (558, edge))
+            else:
+                crease((edge + 212, 190), (edge + 212, 346))
         if phase:
             arrow((358, 268), (465, 268))
             arrow((602, 268), (495, 268))
@@ -80,34 +201,25 @@ def render(index, phase=0):
             arrow((480, 391), (480, 286))
     elif index == 4 and not phase:
         polygon([top, corners[1], corners[2], bottom, corners[3], corners[0]], FOLD)
-        polygon([(402, 190), (558, 190), (558, 346), (402, 346)])
-        for edge in (428, 532):
+        polygon([corners[0], center, corners[3]], LIGHT)
+        polygon([corners[1], center, corners[2]], PAPER)
+        for edge in (441, 519):
             crease((edge, 190), (edge, 346))
-        arrow((480, 217), (480, 142))
-        arrow((480, 319), (480, 394))
+        arrow((363, 268), (408, 268))
+        arrow((597, 268), (552, 268))
     else:
-        a, b, c, d = (385, 239), (513, 186), (595, 282), (467, 339)
-        a2, b2, c2, d2 = (358, 177), (515, 113), (623, 226), (466, 300)
-        if index < 6:
-            polygon([a, b, (466, 129)], LIGHT)
-            polygon([d, c, (537, 421)], FOLD)
-        polygon([a, b, c, d])
-        polygon([a, d, d2, a2], "#dfb273")
-        polygon([b, c, c2, b2], "#d3ab6e")
-        if index == 6 or (index == 5 and phase):
-            polygon([a, b, b2, a2], LIGHT)
-            polygon([d, c, c2, d2], "#b9854d")
-            crease((396, 244), (507, 198))
+        if index == 4:
+            faces = tray_faces(0, 0)
+        elif index == 5 and not phase:
+            faces = tray_faces(pi / 2, pi / 8)
         elif index == 5:
-            arrow((537, 411), (531, 329))
-            arrow((465, 128), (460, 205))
+            faces = tray_faces(pi / 2, pi / 2, 5 * pi / 6)
         else:
-            arrow((364, 249), (352, 187))
-            arrow((627, 293), (636, 233))
+            faces = tray_faces(pi / 2, pi / 2, pi)
+        draw_tray(canvas, faces)
 
-    font = ImageFont.truetype("C:/Windows/Fonts/segoeuib.ttf", 15)
-    draw.text((119, 463), "PAPER WORKSHOP", fill="#dbcda9", font=font)
-    draw.text((841, 463), f"{index + 1:02d} / 07", fill="#dbcda9", font=font, anchor="ra")
+    font = ImageFont.truetype(str(ROOT / "public" / "fonts" / "inter.ttf"), 15)
+    draw.text((841, 463), f"{index + 1:02d} / {len(STEPS):02d}", fill="#dbcda9", font=font, anchor="ra")
     return canvas
 
 

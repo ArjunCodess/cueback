@@ -1,5 +1,17 @@
+@font-face {
+  font-family: Inter;
+  src: url('fonts/inter.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: Newsreader;
+  src: url('fonts/newsreader.ttf') format('truetype');
+  font-weight: 200 800;
+  font-display: swap;
+}
 :root {
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: Inter, system-ui, sans-serif;
   color: #262a22;
   background: #f1eee6;
   line-height: 1.45;
@@ -7,12 +19,16 @@
   --green: #284537;
   --cream: #faf7ef;
   --ink: #262a22;
+  --heading-font: Newsreader, Georgia, serif;
 }
 * {
   box-sizing: border-box;
 }
 body {
   margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 button,
 input,
@@ -23,11 +39,11 @@ select {
   display: none !important;
 }
 .masthead {
-  height: 66px;
-  padding: 0 max(4vw, 18px);
+  min-height: 49px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--line);
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
 }
 .brand {
@@ -51,7 +67,6 @@ select {
 }
 .time,
 footer {
-  font-family: Consolas, 'Courier New', monospace;
   font-size: 12px;
 }
 .mode {
@@ -72,19 +87,20 @@ footer {
   background: #aa642f;
 }
 main {
+  width: 100%;
   max-width: 1250px;
   margin: auto;
-  padding: 31px 32px 18px;
+  padding: 20px 24px 8px;
 }
 .intro {
-  margin-bottom: 23px;
+  margin-bottom: 16px;
+  text-align: center;
 }
 h1 {
-  font:
-    normal clamp(40px, 5.5vw, 72px)/1 Georgia,
-    serif;
-  letter-spacing: -0.062em;
-  margin: 0 0 10px;
+  font: 500 clamp(40px, 5.5vw, 72px)/1 var(--heading-font);
+  letter-spacing: -0.038em;
+  text-wrap: balance;
+  margin: 0 0 4px;
 }
 p {
   margin: 0;
@@ -96,7 +112,7 @@ p {
   display: grid;
   grid-template-columns: minmax(0, 2.35fr) minmax(265px, 1fr);
   gap: 20px;
-  align-items: start;
+  align-items: center;
 }
 .player,
 .steps,
@@ -204,7 +220,7 @@ button:disabled {
   gap: 13px;
 }
 h2 {
-  font-size: 16px;
+  font: 600 20px/1.15 var(--heading-font);
   letter-spacing: -0.02em;
   margin: 0;
 }
@@ -232,16 +248,9 @@ h2 {
   border-color: #d3ddce;
   color: #254935;
 }
-.step span:first-child {
-  font:
-    11px Consolas,
-    monospace;
-  color: #5d6759;
-}
+.step span:first-child,
 .step time {
-  font:
-    11px Consolas,
-    monospace;
+  font-size: 11px;
   color: #5d6759;
 }
 .camera {
@@ -281,9 +290,11 @@ h2 {
 }
 footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
+  flex-wrap: wrap;
+  text-align: center;
   gap: 10px;
-  padding: 14px 0;
+  padding: 12px 0 4px;
   color: #525b4f;
 }
 dialog {
@@ -298,9 +309,8 @@ dialog::backdrop {
   background: #17201bc2;
 }
 dialog h2 {
-  font:
-    30px Georgia,
-    serif;
+  font-size: 30px;
+  text-wrap: balance;
   margin-bottom: 10px;
 }
 dialog label {
@@ -323,6 +333,11 @@ dialog small {
   gap: 8px;
   margin-top: 20px;
 }
+@media (min-width: 761px) {
+  main {
+    max-width: clamp(920px, 255dvh - 950px, 1250px);
+  }
+}
 @media (max-width: 760px) {
   main {
     padding: 22px 15px;
@@ -332,6 +347,7 @@ dialog small {
   }
   .controls {
     gap: 5px;
+    flex-wrap: wrap;
   }
   .controls button {
     padding-inline: 8px;
@@ -371,16 +387,6 @@ button svg {
 }
 .skip-link:focus {
   transform: none;
-}
-main {
-  padding-top: 33px;
-}
-h1 {
-  letter-spacing: -0.038em;
-  text-wrap: balance;
-}
-.masthead {
-  height: 57px;
 }
 .mode {
   font-family: inherit;
@@ -445,12 +451,14 @@ h1 {
   align-items: center;
 }
 .steps small,
+.step span:first-child,
 .step time,
 .time {
   font-variant-numeric: tabular-nums;
 }
 .steps small {
   color: #536451;
+  font-family: Inter, system-ui, sans-serif;
   font-size: 11px;
   font-weight: 600;
 }
@@ -520,17 +528,12 @@ h1 {
   color: var(--ink);
   background: #fffdf6;
 }
-.consent [data-slot='dialog-title'] {
-  font:
-    28px Georgia,
-    serif;
-  text-wrap: balance;
-}
 .consent [data-slot='dialog-description'] {
   font-size: 14px;
 }
 footer kbd {
   margin: 0 3px;
+  font-family: inherit;
   font-size: 11px;
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -548,9 +551,6 @@ footer kbd {
   }
   .time {
     font-size: 10px;
-  }
-  footer {
-    flex-wrap: wrap;
   }
 }
 

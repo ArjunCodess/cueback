@@ -23,6 +23,7 @@ app.whenReady().then(() => {
       preload: join(__dirname, '../dist/preload.cjs'),
       contextIsolation: true,
       sandbox: true,
+      zoomFactor: 1.2,
     },
   });
   const contents = window.webContents;
