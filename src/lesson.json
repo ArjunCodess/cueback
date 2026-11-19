@@ -1,0 +1,9 @@
+[
+  {"start":0,"title":"Start with a square","caption":"Find a square of paper. Turn it so a corner points toward you."},
+  {"start":8,"title":"Mark the center","caption":"Crease both diagonals, opening the paper after each fold."},
+  {"start":17,"title":"Bring in the corners","caption":"Fold all four tips into the center. You'll have a smaller square."},
+  {"start":26,"title":"Crease the walls","caption":"Fold opposite edges to the center and unfold. Rotate a quarter turn and repeat."},
+  {"start":37,"title":"Lift the sides","caption":"Open two opposite corner flaps. Lift the two folded sides along their creases."},
+  {"start":47,"title":"Tuck in the ends","caption":"Pinch the corner creases inward. Bring each end flap up and tuck its tip down into the base."},
+  {"start":56,"title":"Square the tray","caption":"Press the four walls and flatten the base. Your tray is ready."}
+]
