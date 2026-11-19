@@ -77,34 +77,43 @@ try {
     const { data } = await command('Page.captureScreenshot', { format: 'png' });
     await writeFile(screenshot, Buffer.from(data, 'base64'));
   }
-  await click('enable');
-  await until(() => evaluate("!!document.querySelector('#consent')?.matches('[open], [data-open]')"));
-  assert.equal(await evaluate('document.querySelector("#consent input").required'), false);
-  await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
-  await until(() => evaluate('document.activeElement.id === "enable"'));
-  await click('enable');
-  await until(() => evaluate("!!document.querySelector('#consent')?.matches('[open], [data-open]')"));
-  await click('cancel');
-  await until(() => evaluate("!document.querySelector('#consent')?.matches('[open], [data-open]')"));
-  assert.equal(await evaluate(`(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({video:true});
-    const tracks = stream.getTracks();
-    tracks.forEach(track => track.stop());
-    return tracks.every(track => track.kind === 'video' && track.readyState === 'ended');
-  })()`), true);
-  assert.equal(await evaluate(`navigator.mediaDevices.getUserMedia({audio:true})
-    .then(stream => { stream.getTracks().forEach(track => track.stop()); return false; },
-      error => error.name === 'NotAllowedError')`), true);
-  await evaluate(`navigator.mediaDevices.getUserMedia = async () => {
-    throw new DOMException('Denied in desktop test', 'NotAllowedError');
-  }`);
-  await click('enable');
-  await until(() => evaluate('!!document.querySelector("#consent input")'));
-  assert.equal(await evaluate('document.querySelector("#consent input").value'), '');
-  await evaluate('document.querySelector("#consent form").requestSubmit()');
-  await until(() => evaluate('document.querySelector("#camera-help").textContent.includes("Camera access was denied")'));
-  assert.equal(await evaluate('!document.querySelector("#enable").hidden'), true);
+  const cameraAvailable = await evaluate('window.cueback.cameraAvailable');
+  if (process.env.CUEBACK_EXPECT_CAMERA) {
+    assert.equal(cameraAvailable, process.env.CUEBACK_EXPECT_CAMERA === 'true');
+  }
+  if (cameraAvailable) {
+    await click('enable');
+    await until(() => evaluate("!!document.querySelector('#consent')?.matches('[open], [data-open]')"));
+    assert.equal(await evaluate('document.querySelector("#consent input").required'), false);
+    await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    await until(() => evaluate('document.activeElement.id === "enable"'));
+    await click('enable');
+    await until(() => evaluate("!!document.querySelector('#consent')?.matches('[open], [data-open]')"));
+    await click('cancel');
+    await until(() => evaluate("!document.querySelector('#consent')?.matches('[open], [data-open]')"));
+    assert.equal(await evaluate(`(async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({video:true});
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+      return tracks.every(track => track.kind === 'video' && track.readyState === 'ended');
+    })()`), true);
+    assert.equal(await evaluate(`navigator.mediaDevices.getUserMedia({audio:true})
+      .then(stream => { stream.getTracks().forEach(track => track.stop()); return false; },
+        error => error.name === 'NotAllowedError')`), true);
+    await evaluate(`navigator.mediaDevices.getUserMedia = async () => {
+      throw new DOMException('Denied in desktop test', 'NotAllowedError');
+    }`);
+    await click('enable');
+    await until(() => evaluate('!!document.querySelector("#consent input")'));
+    assert.equal(await evaluate('document.querySelector("#consent input").value'), '');
+    await evaluate('document.querySelector("#consent form").requestSubmit()');
+    await until(() => evaluate('document.querySelector("#camera-help").textContent.includes("Camera access was denied")'));
+    assert.equal(await evaluate('!document.querySelector("#enable").hidden'), true);
+  } else {
+    assert.equal(await evaluate('document.querySelector("#enable").hidden'), true);
+    assert.match(await evaluate('document.querySelector("#camera-help").textContent'), /manual playback and simulation/);
+  }
   await evaluate('document.querySelectorAll(".step")[2].click()');
   await click('captions');
   assert.equal(await evaluate('document.querySelector("#caption").hidden'), true);

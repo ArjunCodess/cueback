@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { join } = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { bindSmartSpectraIpc } = require('@smartspectra/node-sdk/main');
+const cameraSupported = require('./camera-support.cjs');
 
 app.setName('cueback');
 
@@ -12,6 +12,7 @@ app.whenReady().then(() => {
     if (error.code !== 'ENOENT') throw error;
   }
   const entry = join(__dirname, '../dist/index.html');
+  const cameraAvailable = cameraSupported();
   const entryUrl = pathToFileURL(entry).href;
   const window = new BrowserWindow({
     title: 'cueback',
@@ -26,23 +27,24 @@ app.whenReady().then(() => {
       contextIsolation: true,
       sandbox: true,
       zoomFactor: 1.2,
+      additionalArguments: cameraAvailable ? ['--cueback-camera'] : [],
     },
   });
   const contents = window.webContents;
   ipcMain.handle('cueback:presage-key', event => {
     const frame = event.senderFrame;
     if (event.sender !== contents || !frame || frame.parent || frame.url.split('#')[0] !== entryUrl) return '';
-    return process.env.PRESAGE_API_KEY?.trim() ?? '';
+    return cameraAvailable ? process.env.PRESAGE_API_KEY?.trim() ?? '' : '';
   });
   window.on('closed', () => ipcMain.removeHandler('cueback:presage-key'));
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
   contents.on('will-navigate', event => event.preventDefault());
   contents.session.setPermissionRequestHandler((sender, permission, callback, details) => {
-    callback(sender === contents && sender.getURL().split('#')[0] === entryUrl && details.isMainFrame &&
+    callback(cameraAvailable && sender === contents && sender.getURL().split('#')[0] === entryUrl && details.isMainFrame &&
       permission === 'media' && details.mediaTypes?.length === 1 &&
       details.mediaTypes[0] === 'video');
   });
-  bindSmartSpectraIpc(window);
+  if (cameraAvailable) require('@smartspectra/node-sdk/main').bindSmartSpectraIpc(window);
   return window.loadFile(entry);
 }).catch(error => {
   console.error(error.message);

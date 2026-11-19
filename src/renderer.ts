@@ -66,9 +66,11 @@ const liveLosses = element('td', 'live-losses');
 
 declare global {
   interface Window {
-    cueback: { readPresageKey(): Promise<string> };
+    cueback: { cameraAvailable: boolean; readPresageKey(): Promise<string> };
   }
 }
+
+const { cameraAvailable } = window.cueback;
 
 player.bindVideo(video);
 const stepList = element('ol', 'steps');
@@ -149,7 +151,7 @@ function render() {
     mode.dataset.kind = state.mode;
     setText(modeLabel, modeNames[state.mode]);
     status.hidden = state.mode === 'manual';
-    enable.hidden = state.mode !== 'manual';
+    enable.hidden = !cameraAvailable || state.mode !== 'manual';
     stop.hidden = !live && !connecting;
     demo.hidden = live || connecting;
     simulation.hidden = !simulated;
@@ -160,7 +162,9 @@ function render() {
     if (previous && previous.mode !== 'demo' && state.mode === 'manual') enable.focus();
   }
   setText(status, state.cameraStatus);
-  setText(help, state.hint);
+  setText(help, !cameraAvailable && state.mode === 'manual'
+    ? 'This build supports manual playback and simulation.'
+    : state.hint);
   gesture.value = state.gesture;
   calibrate.disabled = state.measuring;
   setText(calibrate, state.calibration);
@@ -185,7 +189,9 @@ function render() {
       ? 'End simulation to measure real playback. Simulated gestures do not count.'
       : live && !state.poseReady
         ? 'Calibrate Look down to start a camera take.'
-        : 'Do the same work in both takes. Both start at the same step. Start and Finish are excluded from player inputs.');
+        : cameraAvailable
+          ? 'Do the same work in both takes. Both start at the same step. Start and Finish are excluded from player inputs.'
+          : 'Try one step and count how many times you use the player. Start and Finish are excluded.');
     checkStatus.hidden = !check;
     setText(checkStatus, check
       ? (active === 'live' ? 'Camera take: ' : active ? 'Manual take: ' : 'Compared step: ') +

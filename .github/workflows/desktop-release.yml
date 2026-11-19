@@ -1,0 +1,109 @@
+name: Desktop release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: ${{ matrix.platform }} ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: windows-2025, platform: windows, arch: x64, camera: true }
+          - { runner: windows-11-arm, platform: windows, arch: arm64, camera: false }
+          - { runner: macos-15-intel, platform: macos, arch: x64, camera: false }
+          - { runner: macos-15, platform: macos, arch: arm64, camera: true }
+          - { runner: ubuntu-24.04, platform: linux, arch: x64, camera: true }
+          - { runner: ubuntu-24.04-arm, platform: linux, arch: arm64, camera: true }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          architecture: ${{ matrix.arch }}
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm pack:desktop
+      - name: Test the extracted package
+        env:
+          CUEBACK_EXPECT_CAMERA: ${{ matrix.camera }}
+        run: |
+          mkdir unpacked
+          case '${{ matrix.platform }}' in
+            windows)
+              tar -xf release/*.zip -C unpacked
+              export CUEBACK_TEST_EXECUTABLE="$(cygpath -aw unpacked/cueback/cueback.exe)"
+              node scripts/check-desktop.mjs
+              ;;
+            macos)
+              ditto -x -k release/*.zip unpacked
+              codesign --verify --deep --strict unpacked/cueback/cueback.app
+              export CUEBACK_TEST_EXECUTABLE="$PWD/unpacked/cueback/cueback.app/Contents/MacOS/Electron"
+              node scripts/check-desktop.mjs
+              ;;
+            linux)
+              tar -xzf release/*.tar.gz -C unpacked
+              export CUEBACK_TEST_EXECUTABLE="$PWD/unpacked/cueback/cueback"
+              sudo chown root:root unpacked/cueback/chrome-sandbox
+              sudo chmod 4755 unpacked/cueback/chrome-sandbox
+              xvfb-run -a node scripts/check-desktop.mjs
+              ;;
+          esac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cueback-${{ matrix.platform }}-${{ matrix.arch }}
+          path: release/cueback-*
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          pattern: cueback-*
+          merge-multiple: true
+      - name: Publish verified downloads
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(node -p 'require("./package.json").version')
+          (
+            cd release
+            files=(cueback-"$version"-{windows,macos}-{x64,arm64}.zip cueback-"$version"-linux-{x64,arm64}.tar.gz)
+            sha256sum "${files[@]}" > sha256.txt
+          )
+          gh release create "v$version" release/cueback-* release/sha256.txt \
+            --target "$GITHUB_SHA" --title "cueback $version" --notes-file - <<'NOTES'
+          cueback pauses the tutorial when you look down to work and replays the current step when you look back up. The download includes a paper box lesson and lets you open your own video.
+
+          | Download | Processor | Camera |
+          | --- | --- | --- |
+          | Windows x64 | Intel or AMD | Yes |
+          | Windows arm64 | ARM | Manual playback and simulation |
+          | macOS x64 | Intel | Manual playback and simulation |
+          | macOS arm64 | Apple silicon | Yes |
+          | Linux x64 | Intel or AMD | Yes |
+          | Linux arm64 | ARM | Yes |
+
+          Extract the whole archive. Open `cueback.exe` on Windows, `cueback.app` on macOS, or `cueback` on Linux. Linux builds use glibc and were tested on Ubuntu 24.04. If your distribution blocks unprivileged user namespaces, install the extracted folder in a root-owned directory and set its `chrome-sandbox` helper to owner `root:root` and mode `4755`. The macOS app has an ad hoc signature and is not notarized, so macOS may ask you to allow it under **System Settings → Privacy & Security**. Windows may show a SmartScreen prompt because the executable is unsigned.
+
+          Manual playback and **Try simulation** work without an account. For live replay, open **Set up camera**, enter your Presage key, and calibrate your screen and work poses. SmartSpectra 3.5.0 ships native libraries for the four camera builds listed above.
+          NOTES

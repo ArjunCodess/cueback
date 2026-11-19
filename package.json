@@ -1,6 +1,6 @@
 {
   "name": "cueback",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -11,7 +11,8 @@
   "scripts": {
     "start": "pnpm run build && node scripts/start.mjs",
     "build": "tsc --noEmit && node scripts/build.mjs",
-    "pack:win": "pnpm run build && node scripts/package-windows.mjs",
+    "pack:desktop": "pnpm run build && node scripts/package-desktop.mjs",
+    "pack:win": "pnpm run build && node scripts/package-desktop.mjs",
     "test": "node --test",
     "test:desktop": "pnpm run build && node scripts/check-desktop.mjs"
   },

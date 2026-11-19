@@ -2,7 +2,7 @@
 
 Look down to make a fold and the tutorial pauses. Look up and it plays that step from the beginning. A paper box lesson is included so you can try it right away.
 
-On Windows x64, [download the release](https://github.com/ArjunCodess/cueback/releases/latest), extract the ZIP, and open `cueback.exe`.
+[Download cueback](https://github.com/ArjunCodess/cueback/releases/latest) for Windows, macOS, or Linux. Choose the archive for your processor and extract the whole folder. The release page lists which builds support the camera.
 
 To run from source with Node.js 22.12+ and pnpm 10.26.1:
 
@@ -23,4 +23,4 @@ The camera starts after you confirm. SmartSpectra processes landmarks on your de
 
 These terms govern cueback. Camera mode is for people aged 18 and older. You may not reverse engineer Presage's technology or use it for diagnosis or treatment. To the extent the law allows, Presage provides its technology as is, disclaims all warranties, and accepts no liability arising from its use in cueback. Send questions about the app to [cueback issues](https://github.com/ArjunCodess/cueback/issues).
 
-Run `pnpm test` and `pnpm test:desktop`. Build the portable ZIP with `pnpm pack:win` on Windows x64. To rebuild the bundled lesson, install `pillow`, `imageio-ffmpeg`, and `numpy` with pip, then run `python scripts/make-lesson.py`.
+Run `pnpm test` and `pnpm test:desktop`. Run `pnpm pack:desktop` to package the app for your current platform and processor. To rebuild the bundled lesson, install `pillow`, `imageio-ffmpeg`, and `numpy` with pip, then run `python scripts/make-lesson.py`.
