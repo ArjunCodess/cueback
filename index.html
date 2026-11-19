@@ -124,10 +124,10 @@
   <dialog id="consent" class="consent" aria-labelledby="consent-title" aria-describedby="consent-copy">
     <form>
       <h2 id="consent-title">Enable hands-free replay</h2>
-      <p id="consent-copy">cueback turns on your camera when you confirm. SmartSpectra processes face landmarks on this device. Presage checks your key and usage online. SDK telemetry is off.</p>
+      <p id="consent-copy">Camera mode is for people 18 and older. cueback turns on your camera when you confirm. SmartSpectra processes face landmarks on this device. Presage uses the network to check your key and usage and deliver models when needed. SDK telemetry is off.</p>
       <label for="key">Presage API key</label>
       <input id="key" name="presage-key" type="password" autocomplete="off" spellcheck="false" aria-describedby="key-note key-error">
-      <small id="key-note">Leave this blank to use the key in your local .env file, or enter a key for this session.</small>
+      <small id="key-note">This key lasts for the current session. If you set a key in the source .env file, you can leave this blank.</small>
       <p id="key-error" class="form-error" role="alert" hidden></p>
       <div class="dialog-actions"><button id="cancel" type="button">Cancel</button><button class="primary" type="submit">Turn on camera</button></div>
     </form>

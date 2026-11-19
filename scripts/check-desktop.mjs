@@ -10,7 +10,7 @@ process.env.PRESAGE_API_KEY = 'desktop-test';
 const child = launchDesktop([
   '--remote-debugging-port=0', '--user-data-dir=' + profile,
   '--use-fake-device-for-media-stream', '--disable-background-timer-throttling',
-], ['ignore', 'ignore', 'pipe']);
+], ['ignore', 'ignore', 'pipe'], process.env.CUEBACK_TEST_EXECUTABLE);
 let socket;
 
 async function until(predicate, limit = 10000) {

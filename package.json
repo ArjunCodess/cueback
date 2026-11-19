@@ -11,6 +11,7 @@
   "scripts": {
     "start": "pnpm run build && node scripts/start.mjs",
     "build": "tsc --noEmit && node scripts/build.mjs",
+    "pack:win": "pnpm run build && node scripts/package-windows.mjs",
     "test": "node --test",
     "test:desktop": "pnpm run build && node scripts/check-desktop.mjs"
   },
