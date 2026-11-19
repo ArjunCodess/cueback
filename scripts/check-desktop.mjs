@@ -31,7 +31,7 @@ try {
   });
   const target = await until(async () => {
     const pages = await fetch('http://127.0.0.1:' + port + '/json/list').then(r => r.json());
-    return pages.find(page => page.url === 'benchreplay://app/');
+    return pages.find(page => page.url.startsWith('file:') && page.url.endsWith('/dist/index.html'));
   });
   socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => {
@@ -67,33 +67,6 @@ try {
 
   const click = id => evaluate('document.getElementById(' + JSON.stringify(id) + ').click()');
   await until(() => evaluate('document.querySelectorAll(".step").length === 7 && document.querySelector("#lesson").duration > 60'));
-  await command('Page.enable');
-  await command('Page.addScriptToEvaluateOnNewDocument', { source: `
-    window.registeredTools = new Map();
-    window.agentErrors = [];
-    addEventListener('unhandledrejection', event => window.agentErrors.push(String(event.reason)));
-    Object.defineProperty(document, 'modelContext', { value: {
-      async registerTool(tool) { window.registeredTools.set(tool.name, tool); },
-      unregisterTool(name) { window.registeredTools.delete(name); },
-    } });
-  ` });
-  await command('Page.navigate', { url: 'benchreplay://app/' });
-  await until(() => evaluate('document.querySelectorAll(".step").length === 7 && document.querySelector("#lesson").duration > 60'));
-  await until(() => evaluate('window.registeredTools?.size === 3')).catch(async error => {
-    const details = await evaluate('({tools: window.registeredTools && [...window.registeredTools.keys()], errors: window.agentErrors})');
-    throw new Error(error.message + ': ' + JSON.stringify(details));
-  });
-  const snapshot = await evaluate(`[...window.registeredTools.values()]
-    .find(tool => tool.name.endsWith('snapshot')).execute({})`);
-  assert.ok(snapshot.every(entry => entry.label || entry.component === 'more'));
-  const modeAction = await evaluate(`[...window.registeredTools.values()]
-    .find(tool => tool.name.endsWith('act')).execute({ steps: [{ ref: 'Try simulated input', action: 'press' }] })`);
-  assert.equal(modeAction.ok, true, JSON.stringify(modeAction.error));
-  await until(() => evaluate('document.querySelector("#mode").textContent.trim() === "Simulation only"'));
-  await click('demo');
-  const rejected = await evaluate(`[...window.registeredTools.values()]
-    .find(tool => tool.name.endsWith('act')).execute({ steps: [{ ref: 'Set up camera', action: 'press' }] })`);
-  assert.equal(rejected.ok, false);
   await command('Emulation.setDeviceMetricsOverride', { width: 420, height: 780, deviceScaleFactor: 1, mobile: false });
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
   await command('Emulation.clearDeviceMetricsOverride');
@@ -131,7 +104,7 @@ try {
   await evaluate(`document.querySelector('#consent input').value = 'desktop-test';
     document.querySelector('#consent form').requestSubmit()`);
   await until(() => evaluate('document.querySelector("#camera-help").textContent.includes("Camera access was denied")'));
-  assert.equal(await evaluate('!!document.querySelector("#enable")'), true);
+  assert.equal(await evaluate('!document.querySelector("#enable").hidden'), true);
   await evaluate('document.querySelectorAll(".step")[2].click()');
   await click('captions');
   assert.equal(await evaluate('document.querySelector("#caption").hidden'), true);
@@ -156,11 +129,11 @@ try {
   assert.equal(await evaluate('document.querySelector("#mode").textContent.trim()'), 'Manual mode');
   await click('play');
   await click('demo');
-  const seekAction = await evaluate(`[...window.registeredTools.values()]
-    .find(tool => tool.name.endsWith('act')).execute({
-      steps: [{ ref: 'Playback position', action: 'setValue', args: [16.25] }]
-    })`);
-  assert.equal(seekAction.ok, true, JSON.stringify(seekAction.error));
+  await evaluate(`(() => {
+    const slider = document.querySelector('#seek');
+    slider.value = '16.25';
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`);
   await until(() => evaluate('Math.abs(document.querySelector("#lesson").currentTime - 16.25) < .04 && !document.querySelector("#lesson").seeking'));
   await click('play');
   await until(() => evaluate('document.querySelector("#lesson").currentTime >= 16.79'));
@@ -178,7 +151,7 @@ try {
   await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
   await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
   await until(() => evaluate('document.querySelector("#replay-count").textContent.includes("1 manual")'));
-  console.log('Desktop playback, captions, consent, permissions, responsive layout, keyboard, UI SDK agent, and replay checks passed.');
+  console.log('Desktop playback, captions, consent, permissions, responsive layout, keyboard, and replay checks passed.');
 } finally {
   socket?.close();
   if (child.exitCode === null) {

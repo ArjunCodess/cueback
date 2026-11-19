@@ -10,25 +10,16 @@
   },
   "scripts": {
     "start": "pnpm run build && node scripts/start.mjs",
-    "build": "next build",
+    "build": "tsc --noEmit && node scripts/build.mjs",
     "test": "node --test",
-    "test:desktop": "pnpm run build && node scripts/check-desktop.mjs",
-    "dev": "next dev"
+    "test:desktop": "pnpm run build && node scripts/check-desktop.mjs"
   },
   "dependencies": {
-    "@smartspectra/node-sdk": "3.5.0",
-    "@ui-sdk/core": "^0.1.0-beta.12",
-    "@ui-sdk/react": "^0.1.0-beta.12",
-    "lucide-react": "^1.76.0",
-    "next": "^16.4.6",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "@smartspectra/node-sdk": "3.5.0"
   },
   "devDependencies": {
-    "@types/node": "^26.6.6",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
     "electron": "45.4.1",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.3"
   }
 }

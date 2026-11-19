@@ -148,10 +148,6 @@ export function createPlayer() {
 
   async function startCamera(key: string) {
     if (state.mode !== 'manual') return;
-    if (window.location.protocol !== 'benchreplay:') {
-      update({ hint: 'Open the BenchReplay desktop app to use a camera. You can try simulated input here.' });
-      return;
-    }
     update({
       mode: 'connecting',
       cameraStatus: 'Starting…',
@@ -349,7 +345,6 @@ export function createPlayer() {
       };
     },
     getSnapshot: () => state,
-    getServerSnapshot: () => initial,
     bindVideo(node: HTMLVideoElement | null) {
       video = node;
     },
