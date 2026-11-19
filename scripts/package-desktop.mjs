@@ -85,7 +85,8 @@ try {
     run('codesign', ['--verify', '--deep', '--strict', macApp]);
     run('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', bundle, stagedArchive]);
   } else {
-    run(windows ? 'tar.exe' : 'tar', [windows ? '-a' : '-z', '-cf', stagedArchive, '-C', staging, name]);
+    const tar = windows ? join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar';
+    run(tar, [windows ? '-a' : '-z', '-cf', stagedArchive, '-C', staging, name]);
   }
   await rename(stagedArchive, join(output, archive));
   console.log(join(output, archive));
