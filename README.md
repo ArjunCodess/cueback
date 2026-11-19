@@ -6,16 +6,16 @@ The bundled lesson shows how to fold a paper box. The player uses Next.js App Ro
 
 ## Run locally
 
-Use Node.js 22.12 or newer and npm. Start with a clean install.
+Use Node.js 22.12 or newer and pnpm 10.26.1.
 
 ```sh
-npm ci
-npm start
+pnpm install --frozen-lockfile
+pnpm start
 ```
 
 Manual playback and the simulated input work without a key or webcam. Select **Try simulated input**, play the lesson, then simulate looking down and back. The status bar labels this mode **Simulation only**.
 
-Use `npm run dev` to work on the interface in a browser. Run `npm start` to use the camera integration in Electron.
+Use `pnpm dev` to work on the interface in a browser. Run `pnpm start` to use the camera integration in Electron.
 
 For live sensing, use Windows x64, a webcam, internet access, and a [Presage API key](https://physiology.presagetech.com/). The SDK also lists Apple Silicon macOS and Linux as supported platforms. The app's desktop checks were run on Windows.
 
@@ -40,8 +40,8 @@ The app keeps frames and derived landmarks in memory for the active session. Tur
 ## Checks and challenge demo
 
 ```sh
-npm test
-npm run test:desktop
+pnpm test
+pnpm test:desktop
 ```
 
 The tests cover pose calibration math, gesture timing, signal loss, manual override, and long blink behavior. The desktop smoke test exercises the exported app and checks consent, camera-only permission, keyboard controls, seeking, captions, and simulated chapter replay. Live landmark extraction requires a valid Presage key.

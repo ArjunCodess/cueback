@@ -4,14 +4,15 @@
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
+  "packageManager": "pnpm@10.26.1",
   "engines": {
     "node": ">=22.12"
   },
   "scripts": {
-    "start": "npm run build && node scripts/start.mjs",
+    "start": "pnpm run build && node scripts/start.mjs",
     "build": "next build",
     "test": "node --test",
-    "test:desktop": "npm run build && node scripts/check-desktop.mjs",
+    "test:desktop": "pnpm run build && node scripts/check-desktop.mjs",
     "dev": "next dev"
   },
   "dependencies": {
