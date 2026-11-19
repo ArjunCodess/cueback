@@ -2,7 +2,7 @@
 
 BenchReplay is a desktop tutorial player for tasks that occupy both hands. Look down to follow a step and the lesson pauses. Look back at the screen and it replays that step from the beginning, with the full instruction and caption intact.
 
-The bundled lesson shows how to fold a paper box. All you need to try it is a square of paper.
+The bundled lesson shows how to fold a paper box. The player uses Next.js App Router and UI SDK. Electron serves the static export locally and provides the native SmartSpectra bridge.
 
 ## Run locally
 
@@ -14,6 +14,8 @@ npm start
 ```
 
 Manual playback and the simulated input work without a key or webcam. Select **Try simulated input**, play the lesson, then simulate looking down and back. The status bar labels this mode **Simulation only**.
+
+Use `npm run dev` to work on the interface in a browser. Run `npm start` to use the camera integration in Electron.
 
 For live sensing, use Windows x64, a webcam, internet access, and a [Presage API key](https://physiology.presagetech.com/). The SDK also lists Apple Silicon macOS and Linux as supported platforms. The app's desktop checks were run on Windows.
 
@@ -42,8 +44,8 @@ npm test
 npm run test:desktop
 ```
 
-The tests cover pose calibration math, gesture timing, signal loss, manual override, and long blink behavior. The desktop smoke test uses a synthetic camera to verify camera-only permission. It also exercises the bundled lesson and simulated chapter replay. Live landmark extraction requires a valid Presage key.
+The tests cover pose calibration math, gesture timing, signal loss, manual override, and long blink behavior. The desktop smoke test exercises the exported app and checks consent, camera-only permission, keyboard controls, seeking, captions, and simulated chapter replay. Live landmark extraction requires a valid Presage key.
 
-For the challenge recording, show a short fold with manual playback, then show **Live SmartSpectra** pausing during a real fold and replaying the entire step on return. Finish by turning the camera off. Record after entering the key so it stays out of the video. The submission category is **Best Thoughtful Real-World Use**, with **Most Creative or Delightful Use** also applicable. [Challenge requirements](https://dev.to/challenges/presage-2026-11-04/)
+For the challenge recording, fold the same step once with manual playback and once in **Live SmartSpectra** mode. Count the player controls used after starting each take. Show the player pause during the fold and replay the whole step when you return. Then leave the camera frame long enough to show the tracking-loss recovery and turn the camera off. Start recording after entering the key. Lead with **Best Thoughtful Real-World Use** and list **Most Creative or Delightful Use** in the entry as well. [Challenge requirements](https://dev.to/challenges/presage-2026-11-04/)
 
 The original tutorial diagrams and synthetic narration are bundled. Regenerate them on Windows with `python -m pip install pillow imageio-ffmpeg` and `python scripts/make-lesson.py`.
