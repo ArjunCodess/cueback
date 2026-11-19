@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { launchDesktop } from './desktop.mjs';
 
-const profile = await mkdtemp(join(tmpdir(), 'benchreplay-check-'));
+const profile = await mkdtemp(join(tmpdir(), 'cueback-check-'));
 process.env.PRESAGE_API_KEY = 'desktop-test';
 const child = launchDesktop([
   '--remote-debugging-port=0', '--user-data-dir=' + profile,
-  '--use-fake-device-for-media-stream',
+  '--use-fake-device-for-media-stream', '--disable-background-timer-throttling',
 ], ['ignore', 'ignore', 'pipe']);
 let socket;
 
@@ -68,6 +68,7 @@ try {
 
   const click = id => evaluate('document.getElementById(' + JSON.stringify(id) + ').click()');
   await until(() => evaluate('document.querySelectorAll(".step").length === 7 && document.querySelector("#lesson").duration > 60'));
+  assert.equal(await evaluate('document.title'), 'cueback');
   await command('Emulation.setDeviceMetricsOverride', { width: 420, height: 780, deviceScaleFactor: 1, mobile: false });
   assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
   await command('Emulation.clearDeviceMetricsOverride');
@@ -109,6 +110,7 @@ try {
   assert.equal(await evaluate('document.querySelector("#caption").hidden'), true);
   await click('demo');
   await click('play');
+  await until(() => evaluate('document.querySelector("#camera-status").textContent === "Simulated input ready"'));
   await until(() => evaluate('document.querySelector("#lesson").currentTime >= 18')).catch(async error => {
     const details = await evaluate(`(() => {
       const media = document.querySelector('#lesson');
@@ -150,7 +152,68 @@ try {
   await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
   await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
   await until(() => evaluate('document.querySelector("#replay-count").textContent.includes("1 manual")'));
-  console.log('Desktop playback, captions, consent, permissions, responsive layout, keyboard, and replay checks passed.');
+
+  await evaluate('document.querySelector(".replay-check summary").click()');
+  await click('start-take');
+  await until(() => evaluate('!document.querySelector("#lesson").paused'));
+  await click('replay');
+  await click('play');
+  await click('finish-take');
+  assert.equal(await evaluate('document.querySelector("#manual-inputs").textContent'), '2');
+  assert.equal(await evaluate('document.querySelector("#live-replays").textContent'), '—');
+  await command('Emulation.setDeviceMetricsOverride', { width: 420, height: 780, deviceScaleFactor: 1, mobile: false });
+  assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
+  await click('open-lesson');
+  assert.equal(await evaluate('document.querySelector("#lesson-picker").scrollWidth <= document.querySelector("#lesson-picker").clientWidth + 2'), true);
+  await click('cancel-lesson');
+  await command('Emulation.clearDeviceMetricsOverride');
+  await click('demo');
+  assert.equal(await evaluate('document.querySelector("#start-take").disabled'), true);
+  await click('demo');
+
+  const media = join(profile, 'My lesson.mp4');
+  const chapters = join(profile, 'chapters.json');
+  await copyFile(new URL('../public/lesson/paper-box.mp4', import.meta.url), media);
+  const setFile = async (selector, path) => {
+    const { root } = await command('DOM.getDocument');
+    const { nodeId } = await command('DOM.querySelector', { nodeId: root.nodeId, selector });
+    await command('DOM.setFileInputFiles', { nodeId, files: [path] });
+  };
+  await click('open-lesson');
+  assert.equal(await evaluate('document.querySelector("#chapter-file").files.length'), 0);
+  await setFile('#lesson-file', media);
+  await writeFile(chapters, '[{"start":3,"title":"Wait"}]');
+  await setFile('#chapter-file', chapters);
+  await click('load-lesson');
+  await until(() => evaluate('!document.querySelector("#lesson-error").hidden'));
+  assert.equal(await evaluate('document.querySelectorAll(".step").length'), 7);
+  await writeFile(chapters, JSON.stringify([
+    { start: 0, title: 'Set up' },
+    { start: 12, title: 'Make the fold', caption: 'Press the crease flat.' },
+  ]));
+  await setFile('#chapter-file', chapters);
+  await click('load-lesson');
+  await until(() => evaluate('!document.querySelector("#lesson-picker").open && document.querySelector("#lesson").readyState >= 1'));
+  assert.equal(await evaluate('document.querySelector("#lesson-title").textContent'), 'My lesson');
+  assert.equal(await evaluate('document.querySelectorAll(".step").length'), 2);
+  assert.equal(await evaluate('document.querySelector("#check-results").hidden'), true);
+  await evaluate('document.querySelectorAll(".step")[1].click()');
+  assert.equal(await evaluate('document.querySelector("#caption").textContent'), 'Press the crease flat.');
+  await click('replay');
+  assert.ok(await evaluate('Math.abs(document.querySelector("#lesson").currentTime - 12) < .5'));
+  await click('open-lesson');
+  await click('restore-lesson');
+  await until(() => evaluate('document.querySelectorAll(".step").length === 7 && document.querySelector("#lesson").readyState >= 1'));
+  await click('open-lesson');
+  await setFile('#lesson-file', media);
+  await click('load-lesson');
+  await until(() => evaluate('!document.querySelector("#lesson-picker").open && document.querySelector("#lesson").readyState >= 1'));
+  assert.equal(await evaluate('document.querySelector(".step span:nth-child(2)").textContent'), 'Full video');
+  assert.equal(await evaluate('document.querySelector("#captions").hidden'), true);
+  await click('open-lesson');
+  await click('restore-lesson');
+  await until(() => evaluate('document.querySelectorAll(".step").length === 7'));
+  console.log('Desktop playback, captions, consent, responsive layout, replay, lesson import, and manual take checks passed.');
 } finally {
   socket?.close();
   if (child.exitCode === null) {

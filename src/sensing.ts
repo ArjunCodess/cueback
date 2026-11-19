@@ -50,6 +50,10 @@ export class ReplayGesture {
   #since = 0;
   #closedSince: number | null = null;
 
+  get armed() {
+    return this.#armed;
+  }
+
   reset() {
     this.held = false;
     this.#lost = false;

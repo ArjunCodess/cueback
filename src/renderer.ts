@@ -1,5 +1,5 @@
 import { createPlayer, formatTime } from './player';
-import steps from './lesson.json';
+import { bundledLesson, readLocalLesson, type Lesson } from './lesson';
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, id: string): HTMLElementTagNameMap[K] {
   const node = document.querySelector(tag + '#' + id);
@@ -40,41 +40,79 @@ const key = element('input', 'key');
 const keyError = element('p', 'key-error');
 const form = consent.querySelector('form')!;
 const confirmCamera = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+const lessonPicker = element('dialog', 'lesson-picker');
+const openLesson = element('button', 'open-lesson');
+const restoreLesson = element('button', 'restore-lesson');
+const loadLesson = element('button', 'load-lesson');
+const lessonForm = lessonPicker.querySelector('form')!;
+const lessonFile = element('input', 'lesson-file');
+const chapterFile = element('input', 'chapter-file');
+const lessonError = element('p', 'lesson-error');
+const lessonTitle = element('h1', 'lesson-title');
+const lessonDescription = element('p', 'lesson-description');
+const transcriptPanel = element('details', 'transcript-panel');
+const startTake = element('button', 'start-take');
+const finishTake = element('button', 'finish-take');
+const resetCheck = element('button', 'reset-check');
+const checkHelp = element('p', 'check-help');
+const checkStatus = element('p', 'check-status');
+const checkResults = element('table', 'check-results');
+const observations = element('fieldset', 'observations');
+const manualInputs = element('td', 'manual-inputs');
+const liveInputs = element('td', 'live-inputs');
+const liveHolds = element('td', 'live-holds');
+const liveReplays = element('td', 'live-replays');
+const liveLosses = element('td', 'live-losses');
 
 declare global {
   interface Window {
-    benchReplay: { readPresageKey(): Promise<string> };
+    cueback: { readPresageKey(): Promise<string> };
   }
 }
 
 player.bindVideo(video);
 const stepList = element('ol', 'steps');
 const transcript = element('ol', 'transcript');
-const stepButtons = steps.map((cue, index) => {
-  const item = document.createElement('li');
-  const button = document.createElement('button');
-  const number = document.createElement('span');
-  const title = document.createElement('span');
-  const start = document.createElement('time');
-  number.textContent = String(index + 1).padStart(2, '0');
-  number.setAttribute('aria-hidden', 'true');
-  title.textContent = cue.title;
-  start.dateTime = 'PT' + cue.start + 'S';
-  start.textContent = formatTime(cue.start);
-  button.type = 'button';
-  button.className = 'step';
-  button.append(number, title, start);
-  button.addEventListener('click', () => player.seek(cue.start));
-  item.append(button);
-  stepList.append(item);
+let stepButtons: HTMLButtonElement[] = [];
+let captionsEnabled = true;
 
-  const line = document.createElement('li');
-  const heading = document.createElement('strong');
-  heading.textContent = formatTime(cue.start) + ' ' + cue.title;
-  line.append(heading, cue.caption);
-  transcript.append(line);
-  return button;
-});
+function renderLesson(lesson: Lesson) {
+  setText(lessonTitle, lesson.title);
+  setText(lessonDescription, lesson.description);
+  lessonDescription.hidden = !lesson.description;
+  restoreLesson.hidden = lesson === bundledLesson;
+  stepList.replaceChildren();
+  transcript.replaceChildren();
+  stepButtons = lesson.chapters.map((cue, index) => {
+    const item = document.createElement('li');
+    const button = document.createElement('button');
+    const number = document.createElement('span');
+    const title = document.createElement('span');
+    const start = document.createElement('time');
+    number.textContent = String(index + 1).padStart(2, '0');
+    number.setAttribute('aria-hidden', 'true');
+    title.textContent = cue.title;
+    start.dateTime = 'PT' + cue.start + 'S';
+    start.textContent = formatTime(cue.start);
+    button.type = 'button';
+    button.className = 'step';
+    button.append(number, title, start);
+    button.addEventListener('click', () => player.seek(cue.start));
+    item.append(button);
+    stepList.append(item);
+
+    if (cue.caption) {
+      const line = document.createElement('li');
+      const heading = document.createElement('strong');
+      heading.textContent = formatTime(cue.start) + ' ' + cue.title;
+      line.append(heading, cue.caption);
+      transcript.append(line);
+    }
+    return button;
+  });
+  cc.hidden = transcriptPanel.hidden = !transcript.childElementCount;
+  transcriptPanel.open = false;
+}
 
 const modeNames = {
   manual: 'Manual mode',
@@ -86,6 +124,8 @@ let previous: ReturnType<typeof player.getSnapshot> | undefined;
 
 function render() {
   const state = player.getSnapshot();
+  const changedLesson = previous?.lesson !== state.lesson;
+  if (changedLesson) renderLesson(state.lesson);
   seek.max = String(state.duration);
   seek.value = String(state.position);
   seek.setAttribute('aria-valuetext', formatTime(state.position) + ' of ' + formatTime(state.duration));
@@ -95,11 +135,12 @@ function render() {
   note.hidden = !state.note;
   overlay.hidden = !state.paused || state.position > 0 || !!state.note;
 
-  if (previous?.step !== state.step) {
-    if (previous) stepButtons[previous.step].removeAttribute('aria-current');
+  if (changedLesson || previous?.step !== state.step) {
+    if (!changedLesson && previous) stepButtons[previous.step].removeAttribute('aria-current');
     stepButtons[state.step].setAttribute('aria-current', 'step');
-    setText(caption, steps[state.step].caption);
-    setText(progress, (state.step + 1) + ' of ' + steps.length);
+    setText(caption, state.lesson.chapters[state.step].caption ?? '');
+    caption.hidden = !captionsEnabled || !caption.textContent;
+    setText(progress, (state.step + 1) + ' of ' + state.lesson.chapters.length);
   }
   if (previous?.mode !== state.mode) {
     const live = state.mode === 'live';
@@ -114,7 +155,7 @@ function render() {
     simulation.hidden = !simulated;
     preview.hidden = !live;
     player.bindPreview(live ? cameraFeed : null);
-    setText(demo, simulated ? 'End simulation' : 'Try simulated input');
+    setText(demo, simulated ? 'End simulation' : 'Try simulation');
     if (previous?.mode === 'connecting' && live) calibrate.focus();
     if (previous && previous.mode !== 'demo' && state.mode === 'manual') enable.focus();
   }
@@ -124,6 +165,38 @@ function render() {
   calibrate.disabled = state.measuring;
   setText(calibrate, state.calibration);
   setText(simulatePose, state.simulation === 'desk' ? 'Simulate looking back' : 'Simulate looking down');
+
+  if (previous?.check !== state.check || previous?.mode !== state.mode ||
+      previous?.poseReady !== state.poseReady || changedLesson) {
+    const check = state.check;
+    const active = check?.active;
+    const live = state.mode === 'live';
+    startTake.hidden = Boolean(active);
+    startTake.disabled = state.mode !== 'manual' && (!live || !state.poseReady);
+    finishTake.hidden = !active;
+    resetCheck.hidden = !check || Boolean(active);
+    checkResults.hidden = !check;
+    observations.hidden = !check?.live || active === 'live';
+    if (!check || (active === 'live' && previous?.check?.active !== 'live'))
+      observations.querySelectorAll('input').forEach(input => { input.value = ''; });
+    enable.disabled = demo.disabled = Boolean(active);
+    setText(startTake, live ? 'Start camera take' : 'Start manual take');
+    setText(checkHelp, state.mode === 'demo'
+      ? 'End simulation to measure real playback. Simulated gestures do not count.'
+      : live && !state.poseReady
+        ? 'Calibrate Look down to start a camera take.'
+        : 'Do the same work in both takes. Both start at the same step. Start and Finish are excluded from player inputs.');
+    checkStatus.hidden = !check;
+    setText(checkStatus, check
+      ? (active === 'live' ? 'Camera take: ' : active ? 'Manual take: ' : 'Compared step: ') +
+        state.lesson.chapters[check.step].title
+      : '');
+    setText(manualInputs, String(check?.manual?.inputs ?? '—'));
+    setText(liveInputs, String(check?.live?.inputs ?? '—'));
+    setText(liveHolds, String(check?.live?.holds ?? '—'));
+    setText(liveReplays, String(check?.live?.replays ?? '—'));
+    setText(liveLosses, String(check?.live?.losses ?? '—'));
+  }
 
   if (previous?.counts !== state.counts) {
     const { manual, demo, live } = state.counts;
@@ -139,13 +212,49 @@ for (const event of ['loadedmetadata', 'timeupdate', 'play', 'pause', 'seeked', 
   video.addEventListener(event, player.sync);
 }
 video.addEventListener('error', player.mediaError);
-seek.addEventListener('input', () => player.seek(seek.valueAsNumber));
+seek.addEventListener('input', () => player.seek(seek.valueAsNumber, false));
+seek.addEventListener('change', player.recordControl);
 play.addEventListener('click', player.toggle);
 overlay.addEventListener('click', () => { player.toggle(); play.focus(); });
 element('button', 'replay').addEventListener('click', player.manualReplay);
 cc.addEventListener('click', () => {
-  caption.hidden = !caption.hidden;
-  cc.setAttribute('aria-pressed', String(!caption.hidden));
+  captionsEnabled = !captionsEnabled;
+  caption.hidden = !captionsEnabled || !caption.textContent;
+  cc.setAttribute('aria-pressed', String(captionsEnabled));
+});
+openLesson.addEventListener('click', () => {
+  lessonForm.reset();
+  lessonError.hidden = true;
+  lessonPicker.showModal();
+});
+element('button', 'cancel-lesson').addEventListener('click', () => lessonPicker.close());
+lessonPicker.addEventListener('cancel', event => {
+  if (loadLesson.disabled) event.preventDefault();
+});
+restoreLesson.addEventListener('click', () => {
+  player.setLesson(bundledLesson);
+  lessonPicker.close();
+});
+lessonForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  const file = lessonFile.files?.[0];
+  if (!file || loadLesson.disabled) return;
+  loadLesson.disabled = restoreLesson.disabled = true;
+  const cancel = element('button', 'cancel-lesson');
+  cancel.disabled = true;
+  lessonError.hidden = true;
+  setText(loadLesson, 'Opening…');
+  try {
+    player.setLesson(await readLocalLesson(file, chapterFile.files?.[0]));
+    lessonPicker.close();
+  } catch (error) {
+    setText(lessonError, error instanceof Error ? error.message : 'The lesson could not be opened.');
+    lessonError.hidden = false;
+  } finally {
+    loadLesson.disabled = restoreLesson.disabled = cancel.disabled = false;
+    setText(loadLesson, 'Open video');
+    if (lessonPicker.open) loadLesson.focus();
+  }
 });
 enable.addEventListener('click', () => {
   enable.focus();
@@ -162,11 +271,11 @@ form.addEventListener('submit', async event => {
   if (confirmCamera.disabled) return;
   confirmCamera.disabled = true;
   const manualKey = key.value.trim();
-  const value = manualKey || await window.benchReplay.readPresageKey().catch(() => '');
+  const value = manualKey || await window.cueback.readPresageKey().catch(() => '');
   confirmCamera.disabled = false;
   if (!consent.open) return;
   if (!value) {
-    keyError.textContent = 'Enter a Presage API key or set PRESAGE_API_KEY in .env and restart BenchReplay.';
+    keyError.textContent = 'Enter a Presage API key, or set PRESAGE_API_KEY in .env and restart cueback.';
     keyError.hidden = false;
     key.setAttribute('aria-invalid', 'true');
     key.focus();
@@ -183,9 +292,12 @@ gesture.addEventListener('change', () => player.setGesture(gesture.value === 'bl
 demo.addEventListener('click', player.toggleDemo);
 simulatePose.addEventListener('click', () => player.simulate(player.getSnapshot().simulation === 'desk' ? 'screen' : 'desk'));
 element('button', 'demo-loss').addEventListener('click', () => player.simulate('unknown'));
+startTake.addEventListener('click', () => { player.startTake(); finishTake.focus(); });
+finishTake.addEventListener('click', () => { player.finishTake(); startTake.focus(); });
+resetCheck.addEventListener('click', () => { player.resetCheck(); startTake.focus(); });
 
 document.addEventListener('keydown', event => {
-  if (event.repeat || event.altKey || event.ctrlKey || event.metaKey || consent.open ||
+  if (event.repeat || event.altKey || event.ctrlKey || event.metaKey || consent.open || lessonPicker.open ||
       (event.target instanceof Element && event.target.closest('input,select,textarea,[contenteditable]'))) return;
   if (event.code === 'KeyR') player.manualReplay();
   if (event.code === 'Space' &&

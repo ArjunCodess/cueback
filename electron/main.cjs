@@ -3,6 +3,8 @@ const { join } = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { bindSmartSpectraIpc } = require('@smartspectra/node-sdk/main');
 
+app.setName('cueback');
+
 app.whenReady().then(() => {
   try {
     process.loadEnvFile(join(__dirname, '../.env'));
@@ -12,7 +14,7 @@ app.whenReady().then(() => {
   const entry = join(__dirname, '../dist/index.html');
   const entryUrl = pathToFileURL(entry).href;
   const window = new BrowserWindow({
-    title: 'BenchReplay',
+    title: 'cueback',
     width: 1320,
     height: 930,
     minWidth: 420,
@@ -27,12 +29,12 @@ app.whenReady().then(() => {
     },
   });
   const contents = window.webContents;
-  ipcMain.handle('benchreplay:presage-key', event => {
+  ipcMain.handle('cueback:presage-key', event => {
     const frame = event.senderFrame;
     if (event.sender !== contents || !frame || frame.parent || frame.url.split('#')[0] !== entryUrl) return '';
     return process.env.PRESAGE_API_KEY?.trim() ?? '';
   });
-  window.on('closed', () => ipcMain.removeHandler('benchreplay:presage-key'));
+  window.on('closed', () => ipcMain.removeHandler('cueback:presage-key'));
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
   contents.on('will-navigate', event => event.preventDefault());
   contents.session.setPermissionRequestHandler((sender, permission, callback, details) => {

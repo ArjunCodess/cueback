@@ -4,17 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; worker-src 'self' blob:; media-src 'self' blob:; img-src 'self' data:; object-src 'none'; base-uri 'none'">
-  <title>BenchReplay</title>
+  <title>cueback</title>
   <link rel="stylesheet" href="style.css">
   <script src="renderer.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to lesson</a>
-  <header class="masthead"><div class="brand" translate="no"><span class="mark" aria-hidden="true">&#8634;</span> BenchReplay</div></header>
+  <header class="masthead">
+    <span class="app-name" translate="no">cueback</span>
+    <button id="open-lesson" type="button">Open lesson</button>
+  </header>
   <main id="main" tabindex="-1">
     <div class="intro">
-      <h1>Fold a paper box.</h1>
-      <p>Make an open tray from a single square of paper.</p>
+      <h1 id="lesson-title">Fold a paper box.</h1>
+      <p id="lesson-description">Make an open tray from a single square of paper.</p>
     </div>
     <div class="workbench">
       <section class="player" aria-label="Tutorial player">
@@ -38,7 +41,7 @@
           </div>
         </div>
         <p id="caption" class="caption"></p>
-        <details class="transcript"><summary>Lesson transcript</summary><ol id="transcript"></ol></details>
+        <details id="transcript-panel" class="transcript"><summary>Lesson transcript</summary><ol id="transcript"></ol></details>
       </section>
       <aside class="sidebar" aria-label="Lesson controls">
         <section class="camera" aria-labelledby="camera-title">
@@ -60,12 +63,38 @@
           <div class="camera-actions">
             <button id="enable" type="button">Set up camera</button>
             <button id="stop-camera" type="button" hidden>Turn off camera</button>
-            <button id="demo" class="text-button" type="button">Try simulated input</button>
+            <button id="demo" class="text-button" type="button">Try simulation</button>
           </div>
           <div id="simulation-actions" class="simulation-actions" hidden>
             <button id="demo-input" type="button">Simulate looking down</button>
             <button id="demo-loss" type="button">Simulate signal loss</button>
           </div>
+          <details class="replay-check">
+            <summary>Replay check</summary>
+            <p id="check-help">Compare manual and camera playback on the same step. Each take starts playing from that step.</p>
+            <div class="camera-actions">
+              <button id="start-take" type="button">Start manual take</button>
+              <button id="finish-take" type="button" hidden>Finish take</button>
+              <button id="reset-check" type="button" hidden>Reset check</button>
+            </div>
+            <p id="check-status" role="status" hidden></p>
+            <table id="check-results" hidden>
+              <caption class="visually-hidden">Replay check results</caption>
+              <thead><tr><th scope="col">Count</th><th scope="col">Manual</th><th scope="col">Camera</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Player inputs</th><td id="manual-inputs"></td><td id="live-inputs"></td></tr>
+                <tr><th scope="row">Auto-pauses</th><td>—</td><td id="live-holds"></td></tr>
+                <tr><th scope="row">Auto-replays</th><td>—</td><td id="live-replays"></td></tr>
+                <tr><th scope="row">Tracking interruptions</th><td>—</td><td id="live-losses"></td></tr>
+              </tbody>
+            </table>
+            <fieldset id="observations" hidden>
+              <legend>Your camera take notes</legend>
+              <label>Folds tried <input type="number" min="0" step="1" inputmode="numeric"></label>
+              <label>Missed pauses <input type="number" min="0" step="1" inputmode="numeric"></label>
+              <label>False triggers <input type="number" min="0" step="1" inputmode="numeric"></label>
+            </fieldset>
+          </details>
         </section>
         <section class="steps">
           <h2>Lesson steps <small id="step-progress"></small></h2>
@@ -75,14 +104,31 @@
     </div>
     <footer><span><kbd>Space</kbd> Play or pause <kbd>R</kbd> Replay step</span><span id="replay-count" hidden></span></footer>
   </main>
+  <dialog id="lesson-picker" class="consent" aria-labelledby="picker-title">
+    <form>
+      <h2 id="picker-title">Open a lesson</h2>
+      <p>Choose a video on your device. Add a chapter file if you want replay to return to a specific step.</p>
+      <label for="lesson-file">Video file</label>
+      <input id="lesson-file" type="file" accept="video/*,.mp4,.webm" required>
+      <label for="chapter-file">Chapter file (optional)</label>
+      <input id="chapter-file" type="file" accept=".json,application/json" aria-describedby="chapter-help">
+      <small id="chapter-help">Use JSON with a start time in seconds and a title for each step. The first step starts at 0.</small>
+      <p id="lesson-error" class="form-error" role="alert" hidden></p>
+      <div class="dialog-actions">
+        <button id="restore-lesson" type="button" hidden>Paper box lesson</button>
+        <button id="cancel-lesson" type="button">Cancel</button>
+        <button id="load-lesson" class="primary" type="submit">Open video</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="consent" class="consent" aria-labelledby="consent-title" aria-describedby="consent-copy">
     <form>
       <h2 id="consent-title">Enable hands-free replay</h2>
-      <p id="consent-copy">BenchReplay turns on your camera only after you confirm. SmartSpectra processes landmarks on this device. Presage checks your key and usage over the network. SDK telemetry is off.</p>
+      <p id="consent-copy">cueback turns on your camera when you confirm. SmartSpectra processes face landmarks on this device. Presage checks your key and usage online. SDK telemetry is off.</p>
       <label for="key">Presage API key</label>
       <input id="key" name="presage-key" type="password" autocomplete="off" spellcheck="false" aria-describedby="key-note key-error">
       <small id="key-note">Leave this blank to use the key in your local .env file, or enter a key for this session.</small>
-      <p id="key-error" role="alert" hidden></p>
+      <p id="key-error" class="form-error" role="alert" hidden></p>
       <div class="dialog-actions"><button id="cancel" type="button">Cancel</button><button class="primary" type="submit">Turn on camera</button></div>
     </form>
   </dialog>
